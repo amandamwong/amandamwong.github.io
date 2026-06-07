@@ -1,0 +1,227 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+---
+
+<MainLayout title="Amanda Wong" activePage="home">
+<style>
+  .split-card, .split-card:hover, .split-card:visited { text-decoration: none; }
+
+  .hero {
+    padding: 4rem 0 3rem;
+    position: relative;
+  }
+  .hero__glow {
+    position: absolute;
+    top: -60px; right: -80px;
+    width: 480px; height: 480px;
+    background: radial-gradient(ellipse, rgba(47,129,247,0.09) 0%, transparent 68%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero__inner {
+    position: relative;
+    z-index: 1;
+  }
+  .hero__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.73rem;
+    color: #58a6ff !important;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .hero__eyebrow::before {
+    content: '';
+    width: 20px; height: 1px;
+    background: #58a6ff;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  /*
+   * Hero name: large but on two separate lines so each line
+   * only uses half the container width — same as the early screenshot.
+   * 5rem = 80px at 16px base. Syne 800 is wide but "Amanda" (6 chars)
+   * at 5rem ≈ 420px, well within a 1200px container.
+   */
+  .hero__name {
+    font-family: var(--font-display);
+    font-size: 6rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.05;   /* Space Grotesk needs room for descenders */
+    margin-bottom: 1.5rem;
+    color: #e6edf3 !important;
+    overflow: visible;   /* never clip descenders */
+  }
+  .hero__name .first { color: #58a6ff !important; }
+
+  .hero__sub {
+    font-size: 1.05rem;
+    color: #8b949e !important;
+    max-width: 500px;
+    line-height: 1.7;
+    font-weight: 300;
+    margin-bottom: 3rem;
+  }
+
+  /* ── SPLIT CARDS ── */
+  .split-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  .split-card {
+    display: block;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 16px;
+    padding: 2rem;
+    text-decoration: none !important;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+    overflow: hidden;
+    color: #e6edf3 !important;
+  }
+  .split-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, #2f81f7, transparent);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+  }
+  .split-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    border-color: rgba(47,129,247,0.35);
+    color: #e6edf3 !important;
+  }
+  .split-card:hover::after { transform: scaleX(1); }
+
+  .split-card__icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 1.1rem;
+    background: rgba(47,129,247,0.08);
+    border: 1px solid rgba(47,129,247,0.35);
+  }
+  .split-card__label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #58a6ff !important;
+    margin-bottom: 0.4rem;
+  }
+  .split-card__title {
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: #e6edf3 !important;
+    margin-bottom: 0.65rem;
+  }
+  .split-card__desc {
+    font-size: 0.875rem;
+    color: #8b949e !important;
+    line-height: 1.65;
+    font-weight: 300;
+    margin-bottom: 1.5rem;
+  }
+  .split-card__links { display: flex; flex-direction: column; gap: 0.4rem; }
+  .split-card__link {
+    font-size: 0.8rem;
+    color: #484f58 !important;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: color 0.2s;
+  }
+  .split-card__link::before { content: '→'; color: #58a6ff !important; }
+  .split-card:hover .split-card__link { color: #8b949e !important; }
+
+  .split-card__arrow {
+    position: absolute;
+    top: 2rem; right: 2rem;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #484f58 !important;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+  .split-card:hover .split-card__arrow {
+    color: #e6edf3 !important;
+    border-color: rgba(47,129,247,0.35);
+  }
+
+  @media (max-width: 768px) {
+    .hero__name { font-size: 4.5rem; }
+  }
+  @media (max-width: 640px) {
+    .split-grid { grid-template-columns: 1fr; }
+    .hero { padding: 2.5rem 0 2rem; }
+    .hero__name { font-size: 3rem; }
+  }
+</style>
+
+<div class="hero">
+  <div class="hero__glow"></div>
+  <div class="container">
+    <div class="hero__inner">
+      <div class="hero__eyebrow fade-up">Toronto, Canada</div>
+      <h1 class="hero__name fade-up delay-1">
+        <span class="first">Amanda</span><br />Wong
+      </h1>
+      <p class="hero__sub fade-up delay-2">
+        Finance Systems &amp; FP&amp;A leader helping organizations improve planning,
+        performance management, and decision-making through technology and transformation.
+      </p>
+
+      <div class="split-grid fade-up delay-3">
+
+        <a href="/professional" class="split-card">
+          <div class="split-card__arrow">→</div>
+          <div class="split-card__icon">💼</div>
+          <div class="split-card__label">Work</div>
+          <div class="split-card__title">Professional</div>
+          <p class="split-card__desc">
+            17 years in Finance Systems and FP&amp;A — leading teams, transforming
+            processes, and driving decisions through technology.
+          </p>
+          <div class="split-card__links">
+            <span class="split-card__link">Career Journey</span>
+            <span class="split-card__link">Areas of Focus</span>
+            <span class="split-card__link">Resume</span>
+          </div>
+        </a>
+
+        <a href="/reviews" class="split-card">
+          <div class="split-card__arrow">→</div>
+          <div class="split-card__icon">🎬</div>
+          <div class="split-card__label">Personal</div>
+          <div class="split-card__title">Reviews &amp; More</div>
+          <p class="split-card__desc">
+            Movie &amp; TV reviews, a deep-dive Death in Paradise episode archive,
+            and curated Toronto &amp; entertainment news.
+          </p>
+          <div class="split-card__links">
+            <span class="split-card__link">Movie &amp; TV Reviews</span>
+            <span class="split-card__link">Death in Paradise Archive</span>
+            <span class="split-card__link">Toronto &amp; Entertainment News</span>
+          </div>
+        </a>
+
+      </div>
+    </div>
+  </div>
+</div>
+</MainLayout>
