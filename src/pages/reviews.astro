@@ -43,21 +43,18 @@ function starsHtml(rating) {
 
 <MainLayout title="Reviews & Archive — Amanda Wong" activePage="reviews">
 
-<!-- Netlify Identity widget — handles login/logout -->
-<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 
 <style>
   /* ── IDENTITY GATE ── */
   .identity-gate {
-    display: none;  /* shown by JS if not logged in */
     min-height: 60vh;
-    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
     padding: 3rem 2rem;
     gap: 1.25rem;
+    display: none;  /* JS sets this to flex when needed */
   }
   .gate-icon { font-size: 2.5rem; opacity: 0.4; }
   .gate-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #e6edf3; }
@@ -365,22 +362,39 @@ function starsHtml(rating) {
 
   // ── NETLIFY IDENTITY GATE ─────────────────────────────────
   function checkAuth() {
-    const user = netlifyIdentity.currentUser();
     const gate    = document.getElementById('identity-gate');
     const content = document.getElementById('content-area');
-    if (user) {
-      gate.style.display    = 'none';
-      content.style.display = 'block';
-    } else {
+    try {
+      const user = netlifyIdentity.currentUser();
+      if (user) {
+        gate.style.display    = 'none';
+        content.style.display = 'block';
+      } else {
+        gate.style.display    = 'flex';
+        content.style.display = 'none';
+      }
+    } catch(e) {
+      // Widget not ready yet — default to showing gate
       gate.style.display    = 'flex';
       content.style.display = 'none';
     }
   }
 
-  // Wait for the Identity widget to initialise before checking
-  netlifyIdentity.on('init',  ()     => checkAuth());
-  netlifyIdentity.on('login', (user) => { netlifyIdentity.close(); checkAuth(); });
-  netlifyIdentity.on('logout',()     => checkAuth());
+  // Wait for Identity widget to be ready
+  if (window.netlifyIdentity) {
+    netlifyIdentity.on('init',  ()     => checkAuth());
+    netlifyIdentity.on('login', ()     => { netlifyIdentity.close(); checkAuth(); });
+    netlifyIdentity.on('logout',()     => checkAuth());
+  } else {
+    // Widget script hasn't loaded yet — wait for it
+    window.addEventListener('load', () => {
+      if (window.netlifyIdentity) {
+        netlifyIdentity.on('init',  ()  => checkAuth());
+        netlifyIdentity.on('login', ()  => { netlifyIdentity.close(); checkAuth(); });
+        netlifyIdentity.on('logout',()  => checkAuth());
+      }
+    });
+  }
 
   // ── TABS ──────────────────────────────────────────────────
   function switchTab(name, btn) {
