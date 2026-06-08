@@ -1,11 +1,31 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
+import { readFileSync, readdirSync } from 'fs';
+import { join } from 'path';
 
-// Uncomment once you create src/data/reviews.js and src/data/dip.js:
- import { reviews } from '../data/reviews.js';
- import { dipEpisodes } from '../data/dip.js';
+// ── Load content from CMS-managed JSON files ─────────────────
+// These files are created/edited via yoursite.com/admin
+// When you save in the CMS, Netlify rebuilds the site automatically
 
+function loadCollection(folder) {
+  try {
+    const dir = join(process.cwd(), 'src/content', folder);
+    const files = readdirSync(dir).filter(f => f.endsWith('.json'));
+    return files.map(f => {
+      const raw = readFileSync(join(dir, f), 'utf-8');
+      return JSON.parse(raw);
+    });
+  } catch {
+    return []; // empty if folder doesn't exist yet
+  }
+}
 
+const reviews    = loadCollection('reviews').sort((a, b) =>
+  new Date(b.dateWatched || 0) - new Date(a.dateWatched || 0)
+);
+const dipEpisodes = loadCollection('dip').sort((a, b) =>
+  a.season !== b.season ? a.season - b.season : a.episode - b.episode
+);
 
 const allDipTags = [...new Set(dipEpisodes.flatMap(e => e.tags ?? []))].sort();
 const allGenres  = [...new Set(reviews.flatMap(r => r.genre ?? []))].sort();
@@ -14,24 +34,52 @@ function starsHtml(rating) {
   let s = '';
   for (let i = 1; i <= 5; i++) {
     if (i <= Math.floor(rating)) s += '★';
-    else if (i - rating < 1) s += '½';
-    else s += '☆';
+    else if (i - rating < 1)     s += '½';
+    else                         s += '☆';
   }
   return s;
 }
 ---
 
 <MainLayout title="Reviews & Archive — Amanda Wong" activePage="reviews">
+
+<!-- Netlify Identity widget — handles login/logout -->
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+
 <style>
+  /* ── IDENTITY GATE ── */
+  .identity-gate {
+    display: none;  /* shown by JS if not logged in */
+    min-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 2rem;
+    gap: 1.25rem;
+  }
+  .gate-icon { font-size: 2.5rem; opacity: 0.4; }
+  .gate-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #e6edf3; }
+  .gate-desc { font-size: 0.9rem; color: #8b949e; max-width: 360px; line-height: 1.6; font-weight: 300; }
+  .gate-btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.65rem 1.5rem; background: #2f81f7; color: #fff !important;
+    border: none; border-radius: 6px; font-size: 0.9rem; font-weight: 500;
+    font-family: var(--font-body); cursor: pointer; transition: all 0.2s;
+    text-decoration: none !important;
+  }
+  .gate-btn:hover { background: #388bfd; box-shadow: 0 0 20px rgba(47,129,247,0.35); }
+
+  .content-area { display: none; } /* shown by JS once logged in */
+
   /* ── TABS ── */
   .tabs { display:flex; border-bottom:1px solid #30363d; margin-bottom:2.25rem; }
   .tab-btn {
-    padding:0.65rem 1.25rem;
-    font-size:0.875rem; font-weight:500;
-    color:#8b949e; background:transparent;
-    border:none; border-bottom:2px solid transparent;
-    cursor:pointer; transition:all 0.2s; margin-bottom:-1px;
-    font-family:var(--font-body);
+    padding:0.65rem 1.25rem; font-size:0.875rem; font-weight:500;
+    color:#8b949e; background:transparent; border:none;
+    border-bottom:2px solid transparent; cursor:pointer; transition:all 0.2s;
+    margin-bottom:-1px; font-family:var(--font-body);
   }
   .tab-btn:hover { color:#e6edf3; }
   .tab-btn.active { color:#2f81f7; border-bottom-color:#2f81f7; }
@@ -52,11 +100,7 @@ function starsHtml(rating) {
   }
 
   /* ── REVIEW GRID ── */
-  .review-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(250px, 1fr));
-    gap:1rem;
-  }
+  .review-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:1rem; }
   .review-card {
     background:#161b22; border:1px solid #30363d; border-radius:10px;
     padding:1.35rem; cursor:pointer; transition:all 0.2s;
@@ -68,10 +112,7 @@ function starsHtml(rating) {
   .review-card__stars { color:#d29922; font-size:0.82rem; letter-spacing:0.04em; margin-bottom:0.5rem; }
   .review-card__preview { font-size:0.82rem; color:#8b949e; line-height:1.55; font-weight:300; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   .review-card__more { font-size:0.75rem; color:#58a6ff; margin-top:0.5rem; }
-  .type-badge {
-    display:inline-block; padding:0.18rem 0.55rem; border-radius:20px;
-    font-size:0.68rem; font-weight:500; font-family:var(--font-mono); border:1px solid; white-space:nowrap; flex-shrink:0;
-  }
+  .type-badge { display:inline-block; padding:0.18rem 0.55rem; border-radius:20px; font-size:0.68rem; font-weight:500; font-family:var(--font-mono); border:1px solid; white-space:nowrap; flex-shrink:0; }
   .type-badge--movie { color:#58a6ff; background:rgba(47,129,247,0.1); border-color:rgba(47,129,247,0.3); }
   .type-badge--tv    { color:#a371f7; background:rgba(163,113,247,0.1); border-color:rgba(163,113,247,0.3); }
 
@@ -82,41 +123,22 @@ function starsHtml(rating) {
 
   /* ── DIP GRID ── */
   .dip-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:1rem; }
-  .dip-card {
-    background:#161b22; border:1px solid #30363d; border-radius:10px;
-    padding:1.2rem; cursor:pointer; transition:all 0.2s;
-  }
+  .dip-card { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:1.2rem; cursor:pointer; transition:all 0.2s; }
   .dip-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,0.5); border-color:rgba(47,129,247,0.35); }
   .dip-card__ep { font-family:var(--font-mono); font-size:0.7rem; color:#2f81f7; letter-spacing:0.06em; margin-bottom:0.3rem; }
   .dip-card__title { font-family:var(--font-display); font-size:0.95rem; font-weight:600; letter-spacing:-0.02em; color:#e6edf3; margin-bottom:0.7rem; line-height:1.25; }
   .dip-card__row { display:flex; gap:0.4rem; margin-bottom:0.3rem; align-items:baseline; }
   .dip-card__key { font-family:var(--font-mono); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:#484f58; flex-shrink:0; min-width:52px; }
-  .dip-card__val { font-size:0.8rem; color:#8b949e; line-height:1.4; }
-  /* Truncate method/motive so card doesn't get too tall */
-  .dip-card__val--truncate { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
-  .dip-card__killer { color:#f85149 !important; font-style:italic; }
+  .dip-card__val { font-size:0.8rem; color:#8b949e; line-height:1.4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
   .dip-card__tags { display:flex; flex-wrap:wrap; gap:0.3rem; margin-top:0.7rem; }
-  .dip-tag {
-    display:inline-block; padding:0.15rem 0.5rem;
-    background:#21262d; border:1px solid #30363d; border-radius:6px;
-    font-family:var(--font-mono); font-size:0.65rem; color:#8b949e; white-space:nowrap;
-    transition:all 0.2s;
-  }
+  .dip-tag { display:inline-block; padding:0.15rem 0.5rem; background:#21262d; border:1px solid #30363d; border-radius:6px; font-family:var(--font-mono); font-size:0.65rem; color:#8b949e; white-space:nowrap; transition:all 0.2s; }
   .dip-tag:hover { color:#58a6ff; border-color:rgba(47,129,247,0.35); background:rgba(47,129,247,0.08); }
   .dip-card__more { font-size:0.73rem; color:#58a6ff; margin-top:0.55rem; }
 
   /* ── MODAL ── */
-  .modal-overlay {
-    position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(5px);
-    z-index:500; display:flex; align-items:center; justify-content:center;
-    padding:1rem; opacity:0; pointer-events:none; transition:opacity 0.2s;
-  }
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(5px); z-index:500; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; pointer-events:none; transition:opacity 0.2s; }
   .modal-overlay.open { opacity:1; pointer-events:all; }
-  .modal {
-    background:#161b22; border:1px solid #30363d; border-radius:16px;
-    padding:2rem; max-width:560px; width:100%; max-height:88vh; overflow-y:auto;
-    transform:scale(0.96) translateY(10px); transition:transform 0.22s;
-  }
+  .modal { background:#161b22; border:1px solid #30363d; border-radius:16px; padding:2rem; max-width:560px; width:100%; max-height:88vh; overflow-y:auto; transform:scale(0.96) translateY(10px); transition:transform 0.22s; }
   .modal-overlay.open .modal { transform:scale(1) translateY(0); }
   .modal__hdr { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.1rem; gap:1rem; }
   .modal__title { font-family:var(--font-display); font-size:1.2rem; font-weight:700; letter-spacing:-0.02em; line-height:1.25; color:#e6edf3; }
@@ -143,140 +165,156 @@ function starsHtml(rating) {
 
 <div class="container container--narrow">
 
-  <div class="page-header fade-up">
-    <a href="/" class="page-header__back" style="color:#484f58 !important;">← Home</a>
-    <h1 class="page-header__title" style="color:#e6edf3;">Reviews &amp; Archive</h1>
-    <p class="page-header__desc" style="color:#8b949e;">Movies, TV shows, and a Death in Paradise episode catalogue. Click any card for full details.</p>
+  <!-- ── IDENTITY GATE (shown if not logged in) ── -->
+  <div class="identity-gate" id="identity-gate">
+    <div class="gate-icon">🔒</div>
+    <div class="gate-title">Members Only</div>
+    <p class="gate-desc">This section is private. Log in to view Amanda's movie &amp; TV reviews and Death in Paradise archive.</p>
+    <button class="gate-btn" onclick="netlifyIdentity.open('login')">Log In</button>
   </div>
 
-  <div class="tabs fade-up delay-1">
-    <button class="tab-btn active" onclick="switchTab('reviews',this)">Movie &amp; TV Reviews</button>
-    <button class="tab-btn" onclick="switchTab('dip',this)">Death in Paradise</button>
-  </div>
+  <!-- ── MAIN CONTENT (shown once logged in) ── -->
+  <div class="content-area" id="content-area">
 
-  <!-- REVIEWS PANEL -->
-  <div id="panel-reviews" class="tab-panel active fade-up delay-2">
-    <div class="controls">
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" id="review-search" placeholder="Search reviews…" oninput="filterReviews()" />
+    <div class="page-header fade-up">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+        <div>
+          <a href="/" class="page-header__back">← Home</a>
+          <h1 class="page-header__title">Reviews &amp; Archive</h1>
+          <p class="page-header__desc">Movies, TV shows, and a Death in Paradise episode catalogue. Click any card for full details.</p>
+        </div>
+        <button
+          onclick="netlifyIdentity.open('logout')"
+          style="padding:0.35rem 0.85rem; background:transparent; border:1px solid #30363d; border-radius:6px; color:#8b949e; font-size:0.78rem; font-family:var(--font-body); cursor:pointer; transition:all 0.2s; margin-top:3.5rem;"
+          onmouseover="this.style.color='#e6edf3'" onmouseout="this.style.color='#8b949e'"
+        >Log Out</button>
       </div>
-      <div class="filter-bar" id="type-filters">
-        <button class="filter-btn active" onclick="setTypeFilter('all',this)">All</button>
-        <button class="filter-btn" onclick="setTypeFilter('movie',this)">Movies</button>
-        <button class="filter-btn" onclick="setTypeFilter('tv',this)">TV</button>
+    </div>
+
+    <div class="tabs fade-up delay-1">
+      <button class="tab-btn active" onclick="switchTab('reviews',this)">Movie &amp; TV Reviews</button>
+      <button class="tab-btn" onclick="switchTab('dip',this)">Death in Paradise</button>
+    </div>
+
+    <!-- REVIEWS PANEL -->
+    <div id="panel-reviews" class="tab-panel active fade-up delay-2">
+      <div class="controls">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="review-search" placeholder="Search reviews…" oninput="filterReviews()" />
+        </div>
+        <div class="filter-bar" id="type-filters">
+          <button class="filter-btn active" onclick="setTypeFilter('all',this)">All</button>
+          <button class="filter-btn" onclick="setTypeFilter('movie',this)">Movies</button>
+          <button class="filter-btn" onclick="setTypeFilter('tv',this)">TV</button>
+        </div>
+        {allGenres.length > 0 && (
+          <div class="filter-bar" id="genre-filters">
+            {allGenres.map(g => (
+              <button class="filter-btn" onclick={`setGenreFilter('${g}',this)`}>{g}</button>
+            ))}
+          </div>
+        )}
       </div>
-      {allGenres.length > 0 && (
-        <div class="filter-bar" id="genre-filters">
-          {allGenres.map(g => (
-            <button class="filter-btn" onclick={`setGenreFilter('${g}',this)`}>{g}</button>
+
+      {reviews.length === 0 ? (
+        <div class="empty-state">
+          <div class="empty-state__icon">🎬</div>
+          <div class="empty-state__title">No reviews yet</div>
+          <div class="empty-state__desc">Add your first review at <strong>/admin</strong></div>
+        </div>
+      ) : (
+        <div class="review-grid" id="review-grid">
+          {reviews.map((r, idx) => (
+            <div
+              class="review-card"
+              data-type={r.type}
+              data-genre={(r.genre ?? []).join(',')}
+              data-title={r.title.toLowerCase()}
+              data-text={(r.review ?? '').toLowerCase()}
+              onclick={`openReviewModal(${idx})`}
+            >
+              <div class="review-card__top">
+                <div class="review-card__title">{r.title}</div>
+                <span class={`type-badge type-badge--${r.type}`}>{r.type === 'movie' ? '🎬 Film' : '📺 TV'}</span>
+              </div>
+              <div class="review-card__meta">{r.year}{r.genre?.length ? ` · ${r.genre.join(', ')}` : ''}</div>
+              <div class="review-card__stars">{starsHtml(r.rating)}</div>
+              {r.review && <p class="review-card__preview">{r.review}</p>}
+              <div class="review-card__more">Click to read more →</div>
+            </div>
           ))}
         </div>
       )}
     </div>
 
-    {reviews.length === 0 ? (
-      <div class="empty-state">
-        <div class="empty-state__icon">🎬</div>
-        <div class="empty-state__title">No reviews yet</div>
-        <div class="empty-state__desc">Add entries to <code>src/data/reviews.js</code> to see them here.</div>
+    <!-- DIP PANEL -->
+    <div id="panel-dip" class="tab-panel fade-up delay-2">
+      {dipEpisodes.length > 0 && (
+        <div class="dip-stats">
+          <div><div class="dip-stat__val">{dipEpisodes.length}</div><div class="dip-stat__lbl">Episodes</div></div>
+          <div><div class="dip-stat__val">{[...new Set(dipEpisodes.map(e=>e.season))].length}</div><div class="dip-stat__lbl">Seasons</div></div>
+          <div><div class="dip-stat__val">{[...new Set(dipEpisodes.flatMap(e=>e.tags??[]))].length}</div><div class="dip-stat__lbl">Themes</div></div>
+        </div>
+      )}
+      <div class="controls">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="dip-search" placeholder="Search episodes, methods…" oninput="filterDip()" />
+        </div>
+        <div class="filter-bar" id="season-filters">
+          <button class="filter-btn active" onclick="setSeasonFilter('all',this)">All Seasons</button>
+          {[...new Set(dipEpisodes.map(e=>e.season))].sort((a,b)=>a-b).map(s => (
+            <button class="filter-btn" onclick={`setSeasonFilter(${s},this)`}>S{s}</button>
+          ))}
+        </div>
       </div>
-    ) : (
-      <div class="review-grid" id="review-grid">
-        {reviews.map((r, idx) => (
-          <div
-            class="review-card"
-            data-type={r.type}
-            data-genre={(r.genre ?? []).join(',')}
-            data-title={r.title.toLowerCase()}
-            data-text={(r.review ?? '').toLowerCase()}
-            data-idx={idx}
-            onclick={`openReviewModal(${idx})`}
-          >
-            <div class="review-card__top">
-              <div class="review-card__title">{r.title}</div>
-              <span class={`type-badge type-badge--${r.type}`}>{r.type === 'movie' ? '🎬 Film' : '📺 TV'}</span>
+      {allDipTags.length > 0 && (
+        <div class="filter-bar" id="tag-filters" style="margin-bottom:1.4rem;">
+          <span style="font-size:0.67rem;color:#484f58;font-family:var(--font-mono);">themes:</span>
+          <button class="filter-btn active" onclick="setTagFilter('all',this)">All</button>
+          {allDipTags.map(t => (
+            <button class="filter-btn" onclick={`setTagFilter('${t}',this)`}>{t}</button>
+          ))}
+        </div>
+      )}
+      {dipEpisodes.length === 0 ? (
+        <div class="empty-state">
+          <div class="empty-state__icon">🏝️</div>
+          <div class="empty-state__title">No episodes logged yet</div>
+          <div class="empty-state__desc">Add your first episode at <strong>/admin</strong></div>
+        </div>
+      ) : (
+        <div class="dip-grid" id="dip-grid">
+          {dipEpisodes.map((ep, idx) => (
+            <div
+              class="dip-card"
+              data-season={ep.season}
+              data-tags={(ep.tags??[]).join(',')}
+              data-search={[ep.title,ep.killer,ep.method,ep.motive,ep.summary,...(ep.tags??[])].join(' ').toLowerCase()}
+              onclick={`openDipModal(${idx})`}
+            >
+              <div class="dip-card__ep">S{ep.season}E{String(ep.episode).padStart(2,'0')}</div>
+              <div class="dip-card__title">{ep.title}</div>
+              <div class="dip-card__row">
+                <span class="dip-card__key">Summary</span>
+                <span class="dip-card__val">{ep.summary}</span>
+              </div>
+              <div class="dip-card__row">
+                <span class="dip-card__key">Method</span>
+                <span class="dip-card__val">{ep.method}</span>
+              </div>
+              <div class="dip-card__tags">
+                {(ep.tags??[]).map(t => <span class="dip-tag">{t}</span>)}
+              </div>
+              <div class="dip-card__more">Click for full details →</div>
             </div>
-            <div class="review-card__meta">
-              {r.year}{r.genre?.length ? ` · ${r.genre.join(', ')}` : ''}
-            </div>
-            <div class="review-card__stars">{starsHtml(r.rating)}</div>
-            {r.review && <p class="review-card__preview">{r.review}</p>}
-            <div class="review-card__more">Click to read more →</div>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-
-  <!-- DIP PANEL -->
-  <div id="panel-dip" class="tab-panel fade-up delay-2">
-    {dipEpisodes.length > 0 && (
-      <div class="dip-stats">
-        <div><div class="dip-stat__val">{dipEpisodes.length}</div><div class="dip-stat__lbl">Episodes</div></div>
-        <div><div class="dip-stat__val">{[...new Set(dipEpisodes.map(e=>e.season))].length}</div><div class="dip-stat__lbl">Seasons</div></div>
-        <div><div class="dip-stat__val">{[...new Set(dipEpisodes.flatMap(e=>e.tags??[]))].length}</div><div class="dip-stat__lbl">Themes</div></div>
-      </div>
-    )}
-
-    <div class="controls">
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" id="dip-search" placeholder="Search episodes, killers, methods…" oninput="filterDip()" />
-      </div>
-      <div class="filter-bar" id="season-filters">
-        <button class="filter-btn active" onclick="setSeasonFilter('all',this)">All Seasons</button>
-        {[...new Set(dipEpisodes.map(e=>e.season))].sort((a,b)=>a-b).map(s => (
-          <button class="filter-btn" onclick={`setSeasonFilter(${s},this)`}>S{s}</button>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
 
-    {allDipTags.length > 0 && (
-      <div class="filter-bar" id="tag-filters" style="margin-bottom:1.4rem;">
-        <span style="font-size:0.67rem;color:#484f58;font-family:var(--font-mono);">themes:</span>
-        <button class="filter-btn active" onclick="setTagFilter('all',this)">All</button>
-        {allDipTags.map(t => (
-          <button class="filter-btn" onclick={`setTagFilter('${t}',this)`}>{t}</button>
-        ))}
-      </div>
-    )}
-
-    {dipEpisodes.length === 0 ? (
-      <div class="empty-state">
-        <div class="empty-state__icon">🏝️</div>
-        <div class="empty-state__title">No episodes logged yet</div>
-        <div class="empty-state__desc">Add entries to <code>src/data/dip.js</code> as you rewatch.</div>
-      </div>
-    ) : (
-      <div class="dip-grid" id="dip-grid">
-        {dipEpisodes.map((ep, idx) => (
-          <div
-            class="dip-card"
-            data-season={ep.season}
-            data-tags={(ep.tags??[]).join(',')}
-            data-search={[ep.title,ep.killer,ep.method,ep.motive,ep.summary,...(ep.tags??[])].join(' ').toLowerCase()}
-            onclick={`openDipModal(${idx})`}
-          >
-            <div class="dip-card__ep">S{ep.season}E{String(ep.episode).padStart(2,'0')}</div>
-            <div class="dip-card__title">{ep.title}</div>
-            <div class="dip-card__row">
-              <span class="dip-card__key">Summary</span>
-              <span class="dip-card__val dip-card__val--truncate">{ep.summary}</span>
-            </div>
-            <div class="dip-card__row">
-              <span class="dip-card__key">Method</span>
-              <span class="dip-card__val dip-card__val--truncate">{ep.method}</span>
-            </div>
-            <div class="dip-card__tags">
-              {(ep.tags??[]).map(t => <span class="dip-tag">{t}</span>)}
-            </div>
-            <div class="dip-card__more">Click for full details →</div>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
+  </div><!-- /content-area -->
 </div>
 
 <!-- REVIEW MODAL -->
@@ -303,23 +341,11 @@ function starsHtml(rating) {
       </div>
       <button class="modal__close" onclick="closeModalById('dip-modal')">×</button>
     </div>
-    <div class="modal__field">
-      <div class="modal__field-key">Summary</div>
-      <div class="modal__field-val" id="dm-victim"></div>
-    </div>
+    <div class="modal__field"><div class="modal__field-key">Summary</div><div class="modal__field-val" id="dm-summary"></div></div>
     <div class="modal__divider"></div>
-    <div class="modal__field">
-      <div class="modal__field-key">Method</div>
-      <div class="modal__field-val" id="dm-method"></div>
-    </div>
-    <div class="modal__field">
-      <div class="modal__field-key">Motive</div>
-      <div class="modal__field-val" id="dm-motive"></div>
-    </div>
-    <div class="modal__field">
-      <div class="modal__field-key">Killer</div>
-      <div class="modal__field-val modal__field-val--killer" id="dm-killer"></div>
-    </div>
+    <div class="modal__field"><div class="modal__field-key">Method</div><div class="modal__field-val" id="dm-method"></div></div>
+    <div class="modal__field"><div class="modal__field-key">Motive</div><div class="modal__field-val" id="dm-motive"></div></div>
+    <div class="modal__field"><div class="modal__field-key">Killer</div><div class="modal__field-val modal__field-val--killer" id="dm-killer"></div></div>
     <div id="dm-notes-wrap">
       <div class="modal__divider"></div>
       <div class="modal__field-key">Notes</div>
@@ -333,16 +359,28 @@ function starsHtml(rating) {
 
 <div style="padding-bottom:4rem;"></div>
 
-<script is:inline>
-  // Store data arrays so the modal JS can access them at runtime
-  // They are injected server-side as JSON
-  const REVIEWS_DATA  = [];   // populated below via inline script injection
-  const DIP_DATA      = [];
-</script>
-
 <script define:vars={{ reviewsJson: JSON.stringify(reviews), dipJson: JSON.stringify(dipEpisodes) }}>
   const _reviews = JSON.parse(reviewsJson);
   const _dip     = JSON.parse(dipJson);
+
+  // ── NETLIFY IDENTITY GATE ─────────────────────────────────
+  function checkAuth() {
+    const user = netlifyIdentity.currentUser();
+    const gate    = document.getElementById('identity-gate');
+    const content = document.getElementById('content-area');
+    if (user) {
+      gate.style.display    = 'none';
+      content.style.display = 'block';
+    } else {
+      gate.style.display    = 'flex';
+      content.style.display = 'none';
+    }
+  }
+
+  // Wait for the Identity widget to initialise before checking
+  netlifyIdentity.on('init',  ()     => checkAuth());
+  netlifyIdentity.on('login', (user) => { netlifyIdentity.close(); checkAuth(); });
+  netlifyIdentity.on('logout',()     => checkAuth());
 
   // ── TABS ──────────────────────────────────────────────────
   function switchTab(name, btn) {
@@ -355,23 +393,16 @@ function starsHtml(rating) {
 
   // ── REVIEW MODAL ─────────────────────────────────────────
   function openReviewModal(idx) {
-    const r = _reviews[idx];
-    if (!r) return;
+    const r = _reviews[idx]; if (!r) return;
     document.getElementById('rm-title').textContent = r.title;
     const parts = [r.year, r.type === 'movie' ? 'Film' : 'TV Series', ...(r.genre ?? [])];
     if (r.dateWatched) parts.push(`Watched ${r.dateWatched}`);
     document.getElementById('rm-meta').textContent = parts.filter(Boolean).join(' · ');
-    const rating = r.rating ?? 0;
-    let s = '';
-    for (let i = 1; i <= 5; i++) {
-      if (i <= Math.floor(rating)) s += '★';
-      else if (i - rating < 1) s += '½';
-      else s += '☆';
-    }
+    let s = ''; const rt = r.rating ?? 0;
+    for (let i = 1; i <= 5; i++) { if (i <= Math.floor(rt)) s += '★'; else if (i - rt < 1) s += '½'; else s += '☆'; }
     document.getElementById('rm-stars').textContent = s;
-    document.getElementById('rm-body').textContent = r.review ?? '';
-    document.getElementById('rm-rec').innerHTML = r.recommended
-      ? '<div class="rec-badge">✓ Recommended</div>' : '';
+    document.getElementById('rm-body').textContent  = r.review ?? '';
+    document.getElementById('rm-rec').innerHTML = r.recommended ? '<div class="rec-badge">✓ Recommended</div>' : '';
     document.getElementById('review-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
   }
@@ -379,21 +410,16 @@ function starsHtml(rating) {
 
   // ── DIP MODAL ────────────────────────────────────────────
   function openDipModal(idx) {
-    const ep = _dip[idx];
-    if (!ep) return;
-    document.getElementById('dm-ep').textContent    = `S${ep.season}E${String(ep.episode).padStart(2,'0')}`;
-    document.getElementById('dm-title').textContent = ep.title;
-    document.getElementById('dm-victim').textContent = ep.summary ?? '—';
-    document.getElementById('dm-method').textContent = ep.method ?? '—';
-    document.getElementById('dm-motive').textContent = ep.motive ?? '—';
-    document.getElementById('dm-killer').textContent = ep.killer ?? '—';
+    const ep = _dip[idx]; if (!ep) return;
+    document.getElementById('dm-ep').textContent      = `S${ep.season}E${String(ep.episode).padStart(2,'0')}`;
+    document.getElementById('dm-title').textContent   = ep.title;
+    document.getElementById('dm-summary').textContent = ep.summary ?? '—';
+    document.getElementById('dm-method').textContent  = ep.method  ?? '—';
+    document.getElementById('dm-motive').textContent  = ep.motive  ?? '—';
+    document.getElementById('dm-killer').textContent  = ep.killer  ?? '—';
     const notesWrap = document.getElementById('dm-notes-wrap');
-    if (ep.notes) {
-      document.getElementById('dm-notes').textContent = ep.notes;
-      notesWrap.style.display = '';
-    } else {
-      notesWrap.style.display = 'none';
-    }
+    if (ep.notes) { document.getElementById('dm-notes').textContent = ep.notes; notesWrap.style.display = ''; }
+    else { notesWrap.style.display = 'none'; }
     const tagsEl = document.getElementById('dm-tags');
     tagsEl.innerHTML = (ep.tags ?? []).map(t =>
       `<span class="dip-tag" onclick="event.stopPropagation();filterByTag('${t}')">${t}</span>`
@@ -403,30 +429,15 @@ function starsHtml(rating) {
   }
   window.openDipModal = openDipModal;
 
-  // clicking a tag in modal filters + closes modal
-  function filterByTag(tag) {
-    closeModalById('dip-modal');
-    setTagFilter(tag, null);
-  }
+  function filterByTag(tag) { closeModalById('dip-modal'); setTagFilter(tag, null); }
   window.filterByTag = filterByTag;
 
-  // ── CLOSE ─────────────────────────────────────────────────
-  function closeOnBackdrop(id, e) {
-    if (e.target === document.getElementById(id)) closeModalById(id);
-  }
-  function closeModalById(id) {
-    document.getElementById(id).classList.remove('open');
-    document.body.style.overflow = '';
-  }
+  function closeOnBackdrop(id, e) { if (e.target === document.getElementById(id)) closeModalById(id); }
+  function closeModalById(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow = ''; }
   window.closeOnBackdrop = closeOnBackdrop;
   window.closeModalById  = closeModalById;
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      document.querySelectorAll('.modal-overlay.open').forEach(m => {
-        m.classList.remove('open');
-        document.body.style.overflow = '';
-      });
-    }
+    if (e.key === 'Escape') { document.querySelectorAll('.modal-overlay.open').forEach(m => { m.classList.remove('open'); document.body.style.overflow = ''; }); }
   });
 
   // ── REVIEW FILTERS ────────────────────────────────────────
@@ -434,14 +445,12 @@ function starsHtml(rating) {
   function setTypeFilter(type, btn) {
     activeType = type;
     document.querySelectorAll('#type-filters .filter-btn').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    filterReviews();
+    if (btn) btn.classList.add('active'); filterReviews();
   }
   function setGenreFilter(genre, btn) {
     activeGenre = (activeGenre === genre) ? 'all' : genre;
     document.querySelectorAll('#genre-filters .filter-btn').forEach(b => b.classList.remove('active'));
-    if (activeGenre !== 'all' && btn) btn.classList.add('active');
-    filterReviews();
+    if (activeGenre !== 'all' && btn) btn.classList.add('active'); filterReviews();
   }
   function filterReviews() {
     const q = (document.getElementById('review-search')?.value ?? '').toLowerCase();
@@ -452,28 +461,20 @@ function starsHtml(rating) {
       c.style.display = ok ? '' : 'none';
     });
   }
-  window.setTypeFilter  = setTypeFilter;
-  window.setGenreFilter = setGenreFilter;
-  window.filterReviews  = filterReviews;
+  window.setTypeFilter = setTypeFilter; window.setGenreFilter = setGenreFilter; window.filterReviews = filterReviews;
 
   // ── DIP FILTERS ───────────────────────────────────────────
   let activeSeason = 'all', activeTag = 'all';
   function setSeasonFilter(season, btn) {
     activeSeason = season;
     document.querySelectorAll('#season-filters .filter-btn').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    filterDip();
+    if (btn) btn.classList.add('active'); filterDip();
   }
   function setTagFilter(tag, btn) {
     activeTag = (activeTag === tag) ? 'all' : tag;
     document.querySelectorAll('#tag-filters .filter-btn').forEach(b => b.classList.remove('active'));
-    if (activeTag === 'all') {
-      const allBtn = document.querySelector('#tag-filters .filter-btn');
-      if (allBtn) allBtn.classList.add('active');
-    } else if (btn) {
-      btn.classList.add('active');
-    }
-    filterDip();
+    if (activeTag === 'all') { const a = document.querySelector('#tag-filters .filter-btn'); if (a) a.classList.add('active'); }
+    else if (btn) btn.classList.add('active'); filterDip();
   }
   function filterDip() {
     const q = (document.getElementById('dip-search')?.value ?? '').toLowerCase();
@@ -484,8 +485,6 @@ function starsHtml(rating) {
       c.style.display = ok ? '' : 'none';
     });
   }
-  window.setSeasonFilter = setSeasonFilter;
-  window.setTagFilter    = setTagFilter;
-  window.filterDip       = filterDip;
+  window.setSeasonFilter = setSeasonFilter; window.setTagFilter = setTagFilter; window.filterDip = filterDip;
 </script>
 </MainLayout>

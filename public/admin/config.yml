@@ -1,0 +1,170 @@
+# public/admin/config.yml
+# This file defines what fields appear in the CMS editor.
+# Netlify CMS reads this and builds the editing interface automatically.
+
+backend:
+  name: github
+  repo: amandamwong/amandamwong.github.io   # ← update if your repo name is different
+  branch: main
+
+# Where uploaded images/files go (not needed for text content but good to have)
+media_folder: public/uploads
+public_folder: /uploads
+
+# Use Netlify Identity for login
+local_backend: false
+
+collections:
+
+  # ── MOVIE & TV REVIEWS ──────────────────────────────────────
+  - name: reviews
+    label: "Movie & TV Reviews"
+    label_singular: "Review"
+    folder: src/content/reviews
+    create: true
+    slug: "{{slug}}"          # filename = slugified title
+    extension: json
+    format: json
+    summary: "{{title}} ({{year}}) — {{rating}}★"
+    fields:
+
+      - label: "Title"
+        name: title
+        widget: string
+        hint: "Movie or show title"
+
+      - label: "Type"
+        name: type
+        widget: select
+        options:
+          - { label: "Movie", value: "movie" }
+          - { label: "TV Show", value: "tv" }
+        default: movie
+
+      - label: "Year"
+        name: year
+        widget: number
+        value_type: int
+        min: 1900
+        max: 2100
+        hint: "Release year"
+
+      - label: "Genre(s)"
+        name: genre
+        widget: list
+        allow_add: true
+        hint: "Add each genre separately, e.g. Drama, Thriller"
+
+      - label: "Rating"
+        name: rating
+        widget: select
+        options:
+          - { label: "★☆☆☆☆  1/5", value: 1 }
+          - { label: "★★☆☆☆  2/5", value: 2 }
+          - { label: "★★★☆☆  3/5", value: 3 }
+          - { label: "★★★★☆  4/5", value: 4 }
+          - { label: "★★★★★  5/5", value: 5 }
+          - { label: "½ star",      value: 0.5 }
+          - { label: "1½ stars",    value: 1.5 }
+          - { label: "2½ stars",    value: 2.5 }
+          - { label: "3½ stars",    value: 3.5 }
+          - { label: "4½ stars",    value: 4.5 }
+        default: 3
+
+      - label: "Review"
+        name: review
+        widget: text
+        hint: "Your full review — as long as you like"
+
+      - label: "Date Watched"
+        name: dateWatched
+        widget: date
+        format: "YYYY-MM-DD"
+        date_format: "YYYY-MM-DD"
+
+      - label: "Recommended?"
+        name: recommended
+        widget: boolean
+        default: false
+        hint: "Show a green Recommended badge"
+
+      - label: "TV Status"
+        name: status
+        widget: select
+        required: false
+        options:
+          - { label: "Currently Watching", value: "watching" }
+          - { label: "Completed",          value: "completed" }
+          - { label: "Dropped",            value: "dropped" }
+        hint: "For TV shows only"
+
+
+  # ── DEATH IN PARADISE EPISODES ──────────────────────────────
+  - name: dip
+    label: "Death in Paradise"
+    label_singular: "Episode"
+    folder: src/content/dip
+    create: true
+    slug: "s{{fields.season}}e{{fields.episode}}"
+    extension: json
+    format: json
+    summary: "S{{season}}E{{episode}} — {{title}}"
+    sortable_fields: ["season", "episode", "title"]
+    fields:
+
+      - label: "Season"
+        name: season
+        widget: number
+        value_type: int
+        min: 1
+        max: 20
+
+      - label: "Episode"
+        name: episode
+        widget: number
+        value_type: int
+        min: 1
+        max: 10
+
+      - label: "Title"
+        name: title
+        widget: string
+        hint: "Episode title, e.g. Murder from Above"
+
+      - label: "Summary"
+        name: summary
+        widget: text
+        hint: "Brief description of the episode setup shown on the card"
+
+      - label: "Method"
+        name: method
+        widget: text
+        hint: "How the victim was killed"
+
+      - label: "Motive"
+        name: motive
+        widget: text
+        hint: "Why the killer did it"
+
+      - label: "Killer"
+        name: killer
+        widget: string
+        hint: "Who did it — only shown in the modal popup, hidden on the card"
+
+      - label: "Notes"
+        name: notes
+        widget: text
+        required: false
+        hint: "Any personal notes — only shown in the modal popup"
+
+      - label: "Tags / Themes"
+        name: tags
+        widget: list
+        allow_add: true
+        hint: "Recurring themes for filtering, e.g. poisoning, money, revenge, locked-room"
+
+      - label: "Date Added"
+        name: dateAdded
+        widget: date
+        format: "YYYY-MM-DD"
+        date_format: "YYYY-MM-DD"
