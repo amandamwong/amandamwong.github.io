@@ -1,0 +1,8 @@
+# netlify.toml — place in root of project (same level as package.json)
+
+[build]
+  command = "npx tinacms build && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"

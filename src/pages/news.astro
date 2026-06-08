@@ -20,7 +20,7 @@ const SOURCES = {
     { name: "Toronto Life", query: "site:torontolife.com",  color: "#e85d2f" },
     { name: "CBC Toronto",  query: "site:cbc.ca toronto",   color: "#cc0000" },
     { name: "BlogTO",       query: "site:blogto.com",       color: "#f59e0b" },
-    { name: "Globe and Mail",query: "site:theglobeandmail.com toronto", color: "#1a6b3c" },
+    { name: "Globe Toronto",query: "site:theglobeandmail.com toronto", color: "#1a6b3c" },
   ],
   entertainment: [
     { name: "Variety",      query: "site:variety.com",      color: "#9b59b6" },
@@ -106,10 +106,15 @@ const allSources = [
   .articles-table tbody tr {
     border-bottom: 1px solid #21262d;
     transition: background 0.15s;
+    border-left: 3px solid transparent;
   }
+  .articles-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
   .articles-table tbody tr:last-child { border-bottom: none; }
-  .articles-table tbody tr:hover { background: #161b22; }
-  .articles-table td { padding: 0.7rem 0.75rem; vertical-align: middle; }
+  .articles-table tbody tr:hover {
+    background: #1c2128;
+    border-left-color: var(--row-accent, #2f81f7);
+  }
+  .articles-table td { padding: 0.75rem 0.75rem; vertical-align: middle; }
 
   /* Source cell */
   .cell-source {
@@ -298,7 +303,7 @@ const allSources = [
   function renderTable(items) {
     if (!items.length) return `<div class="feed-empty">No articles found.</div>`;
     const rows = items.map(item => `
-      <tr>
+      <tr style="--row-accent:${item.color}">
         <td class="cell-source">
           <span class="source-label">
             <span class="source-label-dot" style="background:${item.color};"></span>
