@@ -17,17 +17,15 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22        # ← was 20, Astro now requires >=22.12.0
           cache: npm
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - run: npm ci
       - run: npm run build
@@ -35,17 +33,15 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/deploy-pages@v4
         id: deployment
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
