@@ -54,7 +54,7 @@ function starsHtml(rating) {
     text-align: center;
     padding: 3rem 2rem;
     gap: 1.25rem;
-    display: none;  /* JS sets this to flex when needed */
+    /* display controlled entirely by JS */
   }
   .gate-icon { font-size: 2.5rem; opacity: 0.4; }
   .gate-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: #e6edf3; }
@@ -68,7 +68,7 @@ function starsHtml(rating) {
   }
   .gate-btn:hover { background: #388bfd; box-shadow: 0 0 20px rgba(47,129,247,0.35); }
 
-  .content-area { display: none; } /* shown by JS once logged in */
+  /* .content-area display controlled by JS */
 
   /* ── TABS ── */
   .tabs { display:flex; border-bottom:1px solid #30363d; margin-bottom:2.25rem; }
@@ -163,7 +163,7 @@ function starsHtml(rating) {
 <div class="container container--narrow">
 
   <!-- ── IDENTITY GATE (shown if not logged in) ── -->
-  <div class="identity-gate" id="identity-gate">
+  <div class="identity-gate" id="identity-gate" style="display:none;">
     <div class="gate-icon">🔒</div>
     <div class="gate-title">Members Only</div>
     <p class="gate-desc">This section is private. Log in to view Amanda's movie &amp; TV reviews and Death in Paradise archive.</p>
@@ -171,7 +171,7 @@ function starsHtml(rating) {
   </div>
 
   <!-- ── MAIN CONTENT (shown once logged in) ── -->
-  <div class="content-area" id="content-area">
+  <div class="content-area" id="content-area" style="display:none;">
 
     <div class="page-header fade-up">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
@@ -361,40 +361,45 @@ function starsHtml(rating) {
   const _dip     = JSON.parse(dipJson);
 
   // ── NETLIFY IDENTITY GATE ─────────────────────────────────
-  function checkAuth() {
-    const gate    = document.getElementById('identity-gate');
-    const content = document.getElementById('content-area');
-    try {
-      const user = netlifyIdentity.currentUser();
-      if (user) {
-        gate.style.display    = 'none';
-        content.style.display = 'block';
-      } else {
-        gate.style.display    = 'flex';
-        content.style.display = 'none';
-      }
-    } catch(e) {
-      // Widget not ready yet — default to showing gate
-      gate.style.display    = 'flex';
-      content.style.display = 'none';
+  function showGate() {
+    document.getElementById('identity-gate').style.display = 'flex';
+    document.getElementById('content-area').style.display  = 'none';
+  }
+  function showContent() {
+    document.getElementById('identity-gate').style.display = 'none';
+    document.getElementById('content-area').style.display  = 'block';
+  }
+
+  // Both elements start hidden in HTML — we always explicitly show one
+  // This runs as soon as the script block executes
+  function initAuth() {
+    const ni = window.netlifyIdentity;
+    if (!ni) {
+      // Widget failed to load — show gate with error message
+      showGate();
+      return;
+    }
+    ni.on('init', user => {
+      if (user) { showContent(); } else { showGate(); }
+    });
+    ni.on('login', () => {
+      ni.close();
+      showContent();
+    });
+    ni.on('logout', () => {
+      showGate();
+    });
+    // Trigger init manually in case it already fired before this ran
+    const currentUser = ni.currentUser();
+    if (currentUser) {
+      showContent();
+    } else {
+      showGate();
     }
   }
 
-  // Wait for Identity widget to be ready
-  if (window.netlifyIdentity) {
-    netlifyIdentity.on('init',  ()     => checkAuth());
-    netlifyIdentity.on('login', ()     => { netlifyIdentity.close(); checkAuth(); });
-    netlifyIdentity.on('logout',()     => checkAuth());
-  } else {
-    // Widget script hasn't loaded yet — wait for it
-    window.addEventListener('load', () => {
-      if (window.netlifyIdentity) {
-        netlifyIdentity.on('init',  ()  => checkAuth());
-        netlifyIdentity.on('login', ()  => { netlifyIdentity.close(); checkAuth(); });
-        netlifyIdentity.on('logout',()  => checkAuth());
-      }
-    });
-  }
+  // Run immediately — widget is already in <head> so it's loaded
+  initAuth();
 
   // ── TABS ──────────────────────────────────────────────────
   function switchTab(name, btn) {
