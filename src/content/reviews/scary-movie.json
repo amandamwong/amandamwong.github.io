@@ -1,0 +1,13 @@
+{
+  "title": "Scary Movie",
+  "type": "movie",
+  "year": 2026,
+  "genre": [
+    "Comedy",
+    "Horror"
+  ],
+  "rating": 2,
+  "review": "A nostalgic entry into the series, catching up on a decade of horror film parodies and reuniting the original stars.",
+  "dateWatched": "2026-06-04T10:56:37.721Z",
+  "recommended": true
+}
