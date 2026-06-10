@@ -252,8 +252,12 @@ const allSources = [
 
     // Two proxy fallbacks
     const proxies = [
-      `https://corsproxy.io/?${encodeURIComponent(source.rss)}`,
+      // allorigins: reliable, returns JSON wrapper with contents field
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(source.rss)}`,
+      // codetabs: backup
       `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(source.rss)}`,
+      // corsproxy: second backup
+      `https://corsproxy.io/?${encodeURIComponent(source.rss)}`,
     ];
 
     let lastErr;

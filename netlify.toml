@@ -1,4 +1,4 @@
-# netlify.toml — place in root of project (same level as package.json)
+# netlify.toml
 
 [build]
   command = "npm ci && npx @tinacms/cli@latest build && npm run build"
