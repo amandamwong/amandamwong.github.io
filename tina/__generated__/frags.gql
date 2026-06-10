@@ -1,0 +1,26 @@
+fragment ReviewsParts on Reviews {
+  __typename
+  title
+  type
+  year
+  genre
+  rating
+  review
+  dateWatched
+  recommended
+  status
+}
+
+fragment DipParts on Dip {
+  __typename
+  season
+  episode
+  title
+  summary
+  method
+  motive
+  killer
+  notes
+  tags
+  dateAdded
+}

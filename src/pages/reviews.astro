@@ -97,9 +97,111 @@ function starsHtml(rating) {
     .controls { flex-direction:column; align-items:stretch; }
     .controls .search-wrap { max-width:100%; }
   }
+
+  /* ── PASSWORD GATE ── */
+  .pw-gate {
+    min-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    gap: 0;
+  }
+  .pw-gate__icon {
+    font-size: 2.25rem;
+    margin-bottom: 1.25rem;
+    opacity: 0.5;
+  }
+  .pw-gate__title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #e6edf3;
+    margin-bottom: 0.5rem;
+  }
+  .pw-gate__desc {
+    font-size: 0.875rem;
+    color: #8b949e;
+    font-weight: 300;
+    margin-bottom: 2rem;
+    max-width: 320px;
+    line-height: 1.6;
+  }
+  .pw-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 320px;
+  }
+  .pw-input {
+    width: 100%;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #e6edf3;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    font-family: var(--font-body);
+    text-align: center;
+    letter-spacing: 0.15em;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .pw-input:focus {
+    outline: none;
+    border-color: #2f81f7;
+    box-shadow: 0 0 0 3px rgba(47,129,247,0.15);
+  }
+  .pw-input::placeholder { color: #484f58; letter-spacing: normal; }
+  .pw-submit {
+    width: 100%;
+    padding: 0.72rem 1.25rem;
+    background: #2f81f7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .pw-submit:hover { background: #388bfd; box-shadow: 0 0 20px rgba(47,129,247,0.35); }
+  .pw-error {
+    font-size: 0.8rem;
+    color: #f85149;
+    font-family: var(--font-mono);
+    display: none;
+  }
+  .pw-error.show { display: block; }
 </style>
 
 <div class="container container--narrow">
+
+  <!-- ── PASSWORD GATE ── -->
+  <div class="pw-gate" id="pw-gate">
+    <div class="pw-gate__icon">🔒</div>
+    <div class="pw-gate__title">Members Only</div>
+    <p class="pw-gate__desc">This section is private. Enter the password to view Amanda's reviews and Death in Paradise archive.</p>
+    <div class="pw-form">
+      <input
+        type="password"
+        class="pw-input"
+        id="pw-input"
+        placeholder="Enter password"
+        autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')checkPassword()"
+      />
+      <button class="pw-submit" onclick="checkPassword()">Unlock</button>
+      <div class="pw-error" id="pw-error">Incorrect password. Try again.</div>
+    </div>
+  </div>
+
+  <!-- ── MAIN CONTENT (shown after correct password) ── -->
+  <div id="pw-content" style="display:none;">
   <div class="page-header fade-up">
     <a href="/" class="page-header__back">← Home</a>
     <h1 class="page-header__title">Reviews &amp; Archive</h1>
@@ -236,11 +338,60 @@ function starsHtml(rating) {
   </div>
 </div>
 
+</div><!-- /pw-content -->
 <div style="padding-bottom:4rem;"></div>
 
 <script define:vars={{ reviewsJson: JSON.stringify(reviews), dipJson: JSON.stringify(dipEpisodes) }}>
   const _reviews = JSON.parse(reviewsJson);
   const _dip     = JSON.parse(dipJson);
+
+  // ── PASSWORD GATE ────────────────────────────────────────
+  // Change this password to whatever you want
+  const SITE_PASSWORD = "paradise";
+  const COOKIE_NAME   = "reviews_auth";
+  const COOKIE_DAYS   = 30; // stay logged in for 30 days
+
+  function setCookie(name, value, days) {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Strict`;
+  }
+  function getCookie(name) {
+    return document.cookie.split('; ').find(r => r.startsWith(name + '='))?.split('=')[1];
+  }
+
+  function showContent() {
+    document.getElementById('pw-gate').style.display    = 'none';
+    document.getElementById('pw-content').style.display = 'block';
+  }
+  function showGate() {
+    document.getElementById('pw-gate').style.display    = 'flex';
+    document.getElementById('pw-content').style.display = 'none';
+  }
+
+  function checkPassword() {
+    const input = document.getElementById('pw-input').value.trim();
+    const error = document.getElementById('pw-error');
+    if (input === SITE_PASSWORD) {
+      setCookie(COOKIE_NAME, btoa(SITE_PASSWORD), COOKIE_DAYS);
+      error.classList.remove('show');
+      showContent();
+    } else {
+      error.classList.add('show');
+      document.getElementById('pw-input').value = '';
+      document.getElementById('pw-input').focus();
+    }
+  }
+  window.checkPassword = checkPassword;
+
+  // Check cookie on page load
+  const savedAuth = getCookie(COOKIE_NAME);
+  if (savedAuth === btoa(SITE_PASSWORD)) {
+    showContent();
+  } else {
+    showGate();
+    // Focus the input so mobile keyboard opens automatically
+    setTimeout(() => document.getElementById('pw-input')?.focus(), 100);
+  }
 
   function switchTab(name,btn) {
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
