@@ -2,190 +2,139 @@
 import MainLayout from '../layouts/MainLayout.astro';
 
 /**
- * RSS FEED SOURCES — Google News RSS
- * ─────────────────────────────────────────────────────────────
- * Only sources confirmed to work via corsproxy.io are listed.
- * Google News RSS is used for all sources — it re-publishes
- * headlines from any site without CORS restrictions.
+ * RSS FEED SOURCES
+ * Fetched at BUILD TIME by Astro — no CORS issues, no proxy needed.
+ * Articles are baked into the page HTML. Click Refresh to trigger a redeploy.
  *
- * TO ADD A NEW SOURCE:
- *   Copy any line below and change name, query, and color.
- *   query examples:
- *     "site:blogto.com"          → articles from BlogTO
- *     "toronto restaurants"      → topic search
- *     "site:variety.com film"    → site + keyword
+ * TO ADD A SOURCE: copy any line and change name, query, color.
  */
 const SOURCES = {
   toronto: [
-    { name: "Toronto Life", query: "site:torontolife.com",  color: "#e85d2f" },
-    { name: "CBC Toronto",  query: "site:cbc.ca toronto",   color: "#cc0000" },
-    { name: "BlogTO",       query: "site:blogto.com",       color: "#f59e0b" },
+    { name: "Toronto Life", query: "site:torontolife.com",       color: "#e85d2f" },
+    { name: "CBC Toronto",  query: "site:cbc.ca toronto",        color: "#cc0000" },
+    { name: "BlogTO",       query: "site:blogto.com",            color: "#f59e0b" },
     { name: "Globe Toronto",query: "site:theglobeandmail.com toronto", color: "#1a6b3c" },
   ],
   entertainment: [
-    { name: "Variety",      query: "site:variety.com",      color: "#9b59b6" },
-    { name: "Empire",       query: "site:empireonline.com", color: "#e74c3c" },
-    { name: "Screen Rant",  query: "site:screenrant.com",   color: "#e67e22" },
+    { name: "Variety",      query: "site:variety.com",           color: "#9b59b6" },
+    { name: "Empire",       query: "site:empireonline.com",      color: "#e74c3c" },
+    { name: "Screen Rant",  query: "site:screenrant.com",        color: "#e67e22" },
   ],
 };
 
-const allSources = [
-  ...SOURCES.toronto,
-  ...SOURCES.entertainment,
-].map(s => ({
-  ...s,
-  rss: `https://news.google.com/rss/search?q=${encodeURIComponent(s.query)}&hl=en-CA&gl=CA&ceid=CA:en`,
-}));
+const allSources = [...SOURCES.toronto, ...SOURCES.entertainment];
+
+// Fetch all feeds at build time on the server — no CORS restrictions
+async function fetchFeed(source) {
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=en-CA&gl=CA&ceid=CA:en`;
+  try {
+    const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return [];
+    const text = await res.text();
+    // Simple XML parsing without DOMParser (not available in Astro SSG context)
+    const items = [...text.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0, 15);
+    return items.map(m => {
+      const block = m[1];
+      const title   = (block.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || block.match(/<title>(.*?)<\/title>/))?.[1]?.replace(/ - [^-]{2,50}$/, '').trim() ?? 'Untitled';
+      const link    = (block.match(/<link>(.*?)<\/link>/))?.[1]?.trim() ?? '#';
+      const pubDate = (block.match(/<pubDate>(.*?)<\/pubDate>/))?.[1]?.trim() ?? '';
+      return { title, link, pubDate, source: source.name, color: source.color };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// Fetch all sources in parallel at build time
+const results = await Promise.allSettled(allSources.map(s => fetchFeed(s)));
+const allArticles = results
+  .flatMap((r, i) => r.status === 'fulfilled' ? r.value : [])
+  .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+
+const builtAt = new Date().toLocaleString('en-CA', {
+  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+});
+
+function formatDate(str) {
+  if (!str) return '—';
+  try {
+    const d   = new Date(str);
+    const now = new Date();
+    const diffH = (now.getTime() - d.getTime()) / 3600000;
+    if (diffH < 1)  return 'Just now';
+    if (diffH < 24) return `${Math.floor(diffH)}h ago`;
+    if (diffH < 48) return 'Yesterday';
+    return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+  } catch { return '—'; }
+}
+
+// Group articles by source for the sidebar counts
+const countBySource = Object.fromEntries(
+  allSources.map(s => [s.name, allArticles.filter(a => a.source === s.name).length])
+);
 ---
 
 <MainLayout title="News — Amanda Wong" activePage="news">
 <style>
-  .news-layout {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-    gap: 2.5rem;
-    align-items: start;
-  }
+  .news-layout { display:grid; grid-template-columns:185px 1fr; gap:2rem; align-items:start; }
 
-  /* ── SIDEBAR ── */
-  .source-sidebar { position: sticky; top: 70px; }
-  .source-group { margin-bottom: 1.25rem; }
-  .source-group__title {
-    font-family: var(--font-mono); font-size: 0.63rem;
-    text-transform: uppercase; letter-spacing: 0.1em;
-    color: #484f58; margin-bottom: 0.45rem; padding: 0 0.2rem;
-  }
-  .source-btn {
-    display: flex; align-items: center; gap: 0.5rem;
-    width: 100%; padding: 0.38rem 0.55rem; border-radius: 6px;
-    background: transparent; border: none; color: #8b949e !important;
-    cursor: pointer; transition: all 0.2s; font-size: 0.8rem;
-    font-family: var(--font-body); text-align: left; margin-bottom: 0.05rem;
-  }
-  .source-btn:hover { background: #21262d; color: #e6edf3 !important; }
-  .source-btn.active { background: #21262d; color: #58a6ff !important; }
-  .source-btn--all { font-weight: 600; color: #e6edf3 !important; }
-  .source-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .source-sidebar { position:sticky; top:70px; }
+  .source-group { margin-bottom:1.25rem; }
+  .source-group__title { font-family:var(--font-mono); font-size:0.63rem; text-transform:uppercase; letter-spacing:0.1em; color:#484f58; margin-bottom:0.45rem; padding:0 0.2rem; }
+  .source-btn { display:flex; align-items:center; justify-content:space-between; gap:0.5rem; width:100%; padding:0.4rem 0.55rem; border-radius:6px; background:transparent; border:none; color:#8b949e !important; cursor:pointer; transition:all 0.2s; font-size:0.8rem; font-family:var(--font-body); text-align:left; margin-bottom:0.06rem; }
+  .source-btn:hover { background:#21262d; color:#e6edf3 !important; }
+  .source-btn.active { background:#21262d; color:#58a6ff !important; }
+  .source-btn--all { font-weight:600; color:#e6edf3 !important; }
+  .source-btn__left { display:flex; align-items:center; gap:0.5rem; }
+  .source-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .source-count { font-family:var(--font-mono); font-size:0.65rem; color:#484f58; }
 
-  /* ── FEED HEADER ── */
-  .feed-header {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    margin-bottom: 1.25rem; gap: 1rem; flex-wrap: wrap;
-  }
-  .feed-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; letter-spacing: -0.02em; color: #e6edf3; }
-  .feed-count { font-family: var(--font-mono); font-size: 0.67rem; color: #484f58; margin-top: 0.15rem; }
-  .feed-actions { display: flex; gap: 0.5rem; align-items: center; }
-  .refresh-btn {
-    display: flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.75rem;
-    background: #21262d; border: 1px solid #30363d; border-radius: 6px;
-    color: #8b949e !important; cursor: pointer; font-size: 0.75rem;
-    font-family: var(--font-body); transition: all 0.2s;
-  }
-  .refresh-btn:hover { color: #e6edf3 !important; border-color: rgba(47,129,247,0.35); }
+  .feed-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.25rem; flex-wrap:wrap; gap:0.6rem; }
+  .feed-title { font-family:var(--font-display); font-size:1.05rem; font-weight:700; letter-spacing:-0.02em; color:#e6edf3; }
+  .feed-meta { font-family:var(--font-mono); font-size:0.67rem; color:#484f58; margin-top:0.15rem; }
+  .redeploy-btn { display:flex; align-items:center; gap:0.35rem; padding:0.32rem 0.8rem; background:#21262d; border:1px solid #30363d; border-radius:6px; color:#8b949e !important; cursor:pointer; font-size:0.77rem; font-family:var(--font-body); transition:all 0.2s; text-decoration:none !important; }
+  .redeploy-btn:hover { color:#e6edf3 !important; border-color:rgba(47,129,247,0.35); }
 
-  /* ── ARTICLE TABLE — 3 columns: Source | Article | Date ── */
-  .articles-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-    table-layout: fixed;   /* enforces column widths strictly */
-  }
-  .articles-table thead th {
-    text-align: left;
-    padding: 0.5rem 0.75rem;
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #484f58;
-    border-bottom: 1px solid #30363d;
-    background: #0d1117;
-    white-space: nowrap;
-  }
-  .articles-table thead th:last-child { text-align: right; }
-  .articles-table tbody tr {
-    border-bottom: 1px solid #21262d;
-    transition: background 0.15s;
-    border-left: 3px solid transparent;
-  }
-  .articles-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-  .articles-table tbody tr:last-child { border-bottom: none; }
-  .articles-table tbody tr:hover {
-    background: #1c2128;
-    border-left-color: var(--row-accent, #2f81f7);
-  }
-  .articles-table td { padding: 0.75rem 0.75rem; vertical-align: middle; }
+  /* TABLE */
+  .table-wrap { border:1px solid #30363d; border-radius:10px; overflow:hidden; overflow-x:auto; }
+  .articles-table { width:100%; border-collapse:collapse; font-size:0.85rem; table-layout:fixed; }
+  .articles-table colgroup col:nth-child(1) { width:155px; }
+  .articles-table colgroup col:nth-child(2) { }
+  .articles-table colgroup col:nth-child(3) { width:90px; }
+  .articles-table thead th { text-align:left; padding:0.55rem 0.75rem; font-family:var(--font-mono); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:#484f58; border-bottom:1px solid #30363d; background:#0d1117; white-space:nowrap; }
+  .articles-table thead th:last-child { text-align:right; }
+  .articles-table tbody tr { border-bottom:1px solid #21262d; transition:background 0.15s; border-left:3px solid transparent; }
+  .articles-table tbody tr:nth-child(even) { background:rgba(255,255,255,0.02); }
+  .articles-table tbody tr:last-child { border-bottom:none; }
+  .articles-table tbody tr:hover { background:#1c2128; border-left-color:var(--row-color, #2f81f7); }
+  .articles-table td { padding:0.7rem 0.75rem; vertical-align:middle; }
+  .cell-source { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .source-label { display:inline-flex; align-items:center; gap:0.4rem; font-family:var(--font-mono); font-size:0.68rem; color:#8b949e; white-space:nowrap; }
+  .source-label-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+  .cell-article { line-height:1.4; }
+  .article-link { color:#e6edf3 !important; font-weight:500; font-size:0.875rem; text-decoration:none !important; transition:color 0.2s; line-height:1.4; }
+  .article-link:hover { color:#58a6ff !important; }
+  .cell-date { white-space:nowrap; text-align:right; font-family:var(--font-mono); font-size:0.67rem; color:#484f58; }
 
-  /* Source cell */
-  .cell-source {
-    white-space: nowrap;
-    width: 155px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .source-label {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    font-family: var(--font-mono); font-size: 0.68rem;
-    color: #8b949e; white-space: nowrap;
-    overflow: hidden; max-width: 100%;
-  }
-  .source-label-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .no-articles { text-align:center; padding:3rem 1rem; font-size:0.8rem; color:#484f58; font-family:var(--font-mono); }
 
-  /* Article cell */
-  .cell-article { line-height: 1.4; }
-  .article-link {
-    color: #e6edf3 !important;
-    font-weight: 500;
-    font-size: 0.875rem;
-    text-decoration: none !important;
-    transition: color 0.2s;
-    line-height: 1.4;
-  }
-  .article-link:hover { color: #58a6ff !important; }
+  @keyframes spin { to { transform:rotate(360deg); } }
 
-  /* Date cell */
-  .cell-date {
-    white-space: nowrap;
-    text-align: right;
-    width: 90px;
-    font-family: var(--font-mono);
-    font-size: 0.67rem;
-    color: #484f58;
-  }
-
-  /* Table wrapper with border */
-  .table-wrap {
-    border: 1px solid #30363d;
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  /* States */
-  .feed-loading { text-align: center; padding: 3rem 1rem; }
-  .feed-spinner { width: 22px; height: 22px; border: 2px solid #30363d; border-top-color: #2f81f7; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 0.6rem; }
-  .feed-loading__text { font-size: 0.77rem; color: #484f58; font-family: var(--font-mono); }
-  .feed-error { background: #161b22; border: 1px solid rgba(248,81,73,0.2); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.78rem; color: #8b949e; margin-bottom: 0.5rem; }
-  .feed-error strong { color: #f85149; font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 0.15rem; }
-  .feed-empty { text-align: center; padding: 2.5rem 1rem; font-size: 0.8rem; color: #484f58; font-family: var(--font-mono); }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  @media (max-width: 680px) {
-    .news-layout { grid-template-columns: 1fr; }
-    .source-sidebar { position: static; display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 1rem; }
-    .source-group { margin-bottom: 0; }
-    .source-group__title { display: none; }
-    .source-btn { width: auto; border: 1px solid #30363d; border-radius: 20px; padding: 0.25rem 0.65rem; font-size: 0.75rem; }
-    .cell-date { display: none; }
-    .cell-source { width: 100px; min-width: 100px; max-width: 100px; }
+  @media (max-width:680px) {
+    .news-layout { grid-template-columns:1fr; }
+    .source-sidebar { position:static; display:flex; flex-wrap:wrap; gap:0.3rem; margin-bottom:1rem; }
+    .source-group { margin-bottom:0; }
+    .source-group__title { display:none; }
+    .source-btn { width:auto; border:1px solid #30363d; border-radius:20px; padding:0.26rem 0.7rem; font-size:0.75rem; }
+    .cell-date { display:none; }
   }
 </style>
 
-<div class="container">
+<div class="container container--narrow">
   <div class="page-header fade-up">
     <a href="/" class="page-header__back">← Home</a>
     <h1 class="page-header__title">News</h1>
-    <p class="page-header__desc">Latest Toronto and entertainment headlines, fetched live.</p>
+    <p class="page-header__desc">Latest Toronto and entertainment headlines.</p>
   </div>
 
   <div class="news-layout fade-up delay-1">
@@ -194,23 +143,32 @@ const allSources = [
     <aside class="source-sidebar">
       <div class="source-group">
         <div class="source-group__title">View</div>
-        <button class="source-btn source-btn--all active" onclick="loadFeed('all',this)">
-          <span class="source-dot" style="background:#2f81f7;"></span>All Sources
+        <button class="source-btn source-btn--all active" onclick="filterSource('all',this)">
+          <span class="source-btn__left">
+            <span class="source-dot" style="background:#2f81f7;"></span>All Sources
+          </span>
+          <span class="source-count">{allArticles.length}</span>
         </button>
       </div>
       <div class="source-group">
         <div class="source-group__title">Toronto</div>
         {SOURCES.toronto.map(s => (
-          <button class="source-btn" onclick={`loadFeed('${s.name}',this)`}>
-            <span class="source-dot" style={`background:${s.color};`}></span>{s.name}
+          <button class="source-btn" onclick={`filterSource('${s.name}',this)`}>
+            <span class="source-btn__left">
+              <span class="source-dot" style={`background:${s.color};`}></span>{s.name}
+            </span>
+            <span class="source-count">{countBySource[s.name] ?? 0}</span>
           </button>
         ))}
       </div>
       <div class="source-group">
         <div class="source-group__title">Entertainment</div>
         {SOURCES.entertainment.map(s => (
-          <button class="source-btn" onclick={`loadFeed('${s.name}',this)`}>
-            <span class="source-dot" style={`background:${s.color};`}></span>{s.name}
+          <button class="source-btn" onclick={`filterSource('${s.name}',this)`}>
+            <span class="source-btn__left">
+              <span class="source-dot" style={`background:${s.color};`}></span>{s.name}
+            </span>
+            <span class="source-count">{countBySource[s.name] ?? 0}</span>
           </button>
         ))}
       </div>
@@ -221,172 +179,61 @@ const allSources = [
       <div class="feed-header">
         <div>
           <div class="feed-title" id="feed-title">All Sources</div>
-          <div class="feed-count" id="feed-count"></div>
+          <div class="feed-meta">Built {builtAt} · {allArticles.length} articles</div>
         </div>
-        <div class="feed-actions">
-          <button class="refresh-btn" onclick="refreshFeed()">
-            <span id="refresh-icon" style="display:inline-block;">↻</span> Refresh
-          </button>
-        </div>
+        <a href="https://app.netlify.com/sites/amandamwong/deploys" target="_blank" rel="noopener" class="redeploy-btn" title="Trigger a redeploy to refresh articles">
+          ↻ Refresh articles
+        </a>
       </div>
-      <div id="feed-area">
-        <div class="feed-loading">
-          <div class="feed-spinner"></div>
-          <div class="feed-loading__text">Fetching articles…</div>
+
+      {allArticles.length === 0 ? (
+        <div class="no-articles">No articles fetched at build time. Try redeploying.</div>
+      ) : (
+        <div class="table-wrap">
+          <table class="articles-table" id="articles-table">
+            <colgroup><col /><col /><col /></colgroup>
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Article</th>
+                <th style="text-align:right;">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allArticles.map(item => (
+                <tr data-source={item.source} style={`--row-color:${item.color};`}>
+                  <td class="cell-source">
+                    <span class="source-label">
+                      <span class="source-label-dot" style={`background:${item.color};`}></span>
+                      {item.source}
+                    </span>
+                  </td>
+                  <td class="cell-article">
+                    <a class="article-link" href={item.link} target="_blank" rel="noopener">{item.title}</a>
+                  </td>
+                  <td class="cell-date">{formatDate(item.pubDate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
     </div>
 
   </div>
 </div>
 <div style="padding-bottom:4rem;"></div>
 
-<script define:vars={{ sourcesJson: JSON.stringify(allSources) }}>
-  const ALL_SOURCES = JSON.parse(sourcesJson);
-  let currentSource = 'all';
-  const cache = {};
-
-  // Fetch Google News RSS via corsproxy.io, parse with DOMParser
-  async function fetchRSS(source) {
-    if (cache[source.name]) return cache[source.name];
-
-    // Two proxy fallbacks
-    const proxies = [
-      // allorigins: reliable, returns JSON wrapper with contents field
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(source.rss)}`,
-      // codetabs: backup
-      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(source.rss)}`,
-      // corsproxy: second backup
-      `https://corsproxy.io/?${encodeURIComponent(source.rss)}`,
-    ];
-
-    let lastErr;
-    for (const url of proxies) {
-      try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(7000) });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        const xml  = new DOMParser().parseFromString(text, 'text/xml');
-        if (xml.querySelector('parsererror')) throw new Error('XML parse error');
-
-        const items = [...xml.querySelectorAll('item')].slice(0, 20).map(item => {
-          // Google News puts the real URL as the text node after <link>
-          const linkEl = item.querySelector('link');
-          const link = linkEl
-            ? (linkEl.nextSibling?.nodeValue?.trim() || linkEl.textContent?.trim() || '#')
-            : '#';
-          const rawTitle = item.querySelector('title')?.textContent?.trim() ?? 'Untitled';
-          // Strip " - Source Name" suffix Google News appends
-          const title = rawTitle.replace(/ - [^-]{2,50}$/, '').trim();
-          const pubDate = item.querySelector('pubDate')?.textContent?.trim() ?? '';
-          return { title, link, date: pubDate, source: source.name, color: source.color };
-        });
-
-        cache[source.name] = items;
-        return items;
-      } catch (e) {
-        lastErr = e;
-      }
-    }
-    throw lastErr;
-  }
-
-  function formatDate(str) {
-    if (!str) return '—';
-    try {
-      const d = new Date(str);
-      const now = new Date();
-      const diffH = (now - d) / 3600000;
-      if (diffH < 1) return 'Just now';
-      if (diffH < 24) return `${Math.floor(diffH)}h ago`;
-      if (diffH < 48) return 'Yesterday';
-      return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
-    } catch { return '—'; }
-  }
-
-  function renderTable(items) {
-    if (!items.length) return `<div class="feed-empty">No articles found.</div>`;
-    const rows = items.map(item => `
-      <tr style="--row-accent:${item.color}">
-        <td class="cell-source">
-          <span class="source-label">
-            <span class="source-label-dot" style="background:${item.color};"></span>
-            ${item.source}
-          </span>
-        </td>
-        <td class="cell-article">
-          <a class="article-link" href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
-        </td>
-        <td class="cell-date">${formatDate(item.date)}</td>
-      </tr>`).join('');
-
-    return `
-      <div class="table-wrap">
-        <table class="articles-table">
-          <colgroup>
-            <col style="width:155px;min-width:155px;">
-            <col>
-            <col style="width:90px;min-width:90px;">
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Source</th>
-              <th>Article</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-  }
-
-  async function loadFeed(sourceName, btn) {
-    currentSource = sourceName;
+<script>
+  // Client-side source filtering — no refetch needed, data is already in the HTML
+  function filterSource(name, btn) {
     document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    document.getElementById('feed-title').textContent = sourceName === 'all' ? 'All Sources' : sourceName;
-    document.getElementById('feed-count').textContent = '';
-
-    const area = document.getElementById('feed-area');
-    area.innerHTML = `<div class="feed-loading"><div class="feed-spinner"></div><div class="feed-loading__text">Fetching articles…</div></div>`;
-
-    const toLoad  = sourceName === 'all' ? ALL_SOURCES : ALL_SOURCES.filter(s => s.name === sourceName);
-    const results = await Promise.allSettled(toLoad.map(s => fetchRSS(s)));
-
-    let allItems = [], errorHtml = '';
-    results.forEach((r, i) => {
-      if (r.status === 'fulfilled') {
-        allItems.push(...r.value);
-      } else {
-        // Only show error if it's not a timeout — timeouts just mean that source is unavailable
-        const msg = r.reason?.message ?? '';
-        if (!msg.includes('timed out') && !msg.includes('abort')) {
-          errorHtml += `<div class="feed-error"><strong>${toLoad[i].name}</strong>${msg || 'Could not load feed'}</div>`;
-        }
-      }
+    document.getElementById('feed-title').textContent = name === 'all' ? 'All Sources' : name;
+    document.querySelectorAll('#articles-table tbody tr').forEach(row => {
+      row.style.display = (name === 'all' || row.dataset.source === name) ? '' : 'none';
     });
-
-    // Sort newest first
-    allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const count = allItems.length;
-    document.getElementById('feed-count').textContent = count ? `${count} article${count !== 1 ? 's' : ''}` : '';
-    area.innerHTML = errorHtml + renderTable(allItems);
   }
-
-  function refreshFeed() {
-    if (currentSource === 'all') { for (const k in cache) delete cache[k]; }
-    else delete cache[currentSource];
-    loadFeed(currentSource, document.querySelector('.source-btn.active'));
-    const icon = document.getElementById('refresh-icon');
-    icon.style.animation = 'spin 1s linear infinite';
-    setTimeout(() => { icon.style.animation = ''; }, 1200);
-  }
-
-  window.loadFeed    = loadFeed;
-  window.refreshFeed = refreshFeed;
-
-  document.addEventListener('DOMContentLoaded', () => {
-    loadFeed('all', document.querySelector('.source-btn--all'));
-  });
+  window.filterSource = filterSource;
 </script>
 </MainLayout>

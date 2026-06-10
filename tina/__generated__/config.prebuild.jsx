@@ -3,7 +3,8 @@ import { defineConfig } from "tinacms";
 var config_default = defineConfig({
   // Your GitHub repo — update if your repo name is different
   branch: "main",
-  clientId: process.env.TINA_CLIENT_ID || "",
+  // clientId must use TINA_PUBLIC_CLIENT_ID (Tina's required variable name)
+  clientId: process.env.TINA_PUBLIC_CLIENT_ID || "",
   token: process.env.TINA_TOKEN || "",
   build: {
     outputFolder: "admin",
