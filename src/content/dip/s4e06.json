@@ -3,5 +3,14 @@
   "episode": 6,
   "title": "The Perfect Murder",
   "summary": "A volleyball player is found stabbed in the back of a van.",
-  "method": "The team initially thought the victim was killed in her bedroom and her body was transported elsewhere. She actually willingly hid in the back of the van, hoping to record a conversation where the coach admitted to match fixing. However, it was a set up and the killer stabbed her right before pretending to discover the body."
+  "method": "The team initially thought the victim was killed in her bedroom and her body was transported elsewhere. She actually willingly hid in the back of the van, hoping to record a conversation where the coach admitted to match fixing. However, it was a set up and the killer stabbed her right before pretending to discover the body.",
+  "motive": "The victim was about to expose the killer's father for match fixing. Their family would've lost everything.",
+  "killer": "Another volleyball player",
+  "tags": [
+    "stabbing",
+    "Florence",
+    "JP",
+    "Dwayne",
+    "DI Goodman"
+  ]
 }
