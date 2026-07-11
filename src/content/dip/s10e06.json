@@ -3,9 +3,10 @@
   "episode": 6,
   "title": "Fake or Fortune",
   "summary": "Camille returns to visit Catherine and to help the team solve the murder while Florence is in the UK.",
-  "motive": "The killer found out that his father was killed to fake the death of Aidan, the pianist's friend.",
+  "method": "The killer broke in to the pianist’s office earlier and shot him. He then took a few high value items to make it look like a robbery. The actual gunshot everyone hears is from a bullet in a campfire, which the killer threw in earlier. The gun was stolen from Aidan’s house earlier, hence why his fingerprints are on it.",
+  "motive": "The killer found out that his father was killed to fake the death of Aidan Shawcroft, the pianist's friend.",
   "killer": "The gardener",
-  "notes": "Richard makes an appearance in this episode",
+  "notes": "Richard makes an appearance in this episode as a ghost that talks to Camille on the beach.\nThere are cast changes they tried to pretend was going to happen, like Camille returning permanently and Catherine.\nThe plot isn’t complex enough to justify the two part episode, it’s more the cameos.",
   "tags": [
     "shooting",
     "Camille",
@@ -13,6 +14,7 @@
     "JP",
     "Marlon",
     "DI Parker",
-    "DI Poole"
+    "DI Poole",
+    "gunshot faked for alibi"
   ]
 }
