@@ -3,14 +3,15 @@
   "episode": 8,
   "title": "I'll Never Let You Go",
   "summary": "A man confesses to shooting his boss despite not remembering what happened.",
-  "method": "The victim was going to kill herself and the man stopped her by grabbing the gun.",
-  "motive": "The man was trying to stop the victim from killing herself.",
-  "killer": "None, the victim pulled the trigger",
+  "method": "The victim was going to grab the gun to kill herself and the man grabbed it first. She pulled the trigger herself. Then the man fell backwards and hit his head, leading to his amnesia.",
+  "motive": "She can’t get over her son’s death and how she could’ve prevented it by being there to watch him.",
+  "killer": "None, the victim pulled the trigger herself",
   "notes": "JP's last episode before leaving to become a teacher at police college. ",
   "tags": [
     "JP",
     "DI Parker",
     "Marlon",
-    "Florence"
+    "Florence",
+    "suicide"
   ]
 }
