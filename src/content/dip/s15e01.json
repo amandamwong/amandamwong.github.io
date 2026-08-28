@@ -3,8 +3,9 @@
   "episode": 1,
   "title": "Episode 1",
   "summary": "Selwyn returns to Saint Marie and walks into a supposed suicide.",
-  "method": "The man was killed hours earlier, his body was hidden, and the death that Selwyn witnesses was staged. A trash can was used to fake the time of death.",
-  "killer": "A family",
+  "method": "The man was killed hours earlier, his body was hidden in an alley for a few hours, and the death that Selwyn witnesses was staged. A trash can was used to fake the time of death. ",
+  "motive": "The killer found out the victim has evidence that his father was intending to commit fraud to take over the Government House property.",
+  "killer": "The son of a government official, who worked as an intern",
   "notes": "First appearance of Sergeant Mattie Fletcher",
   "tags": [
     "falling death",
